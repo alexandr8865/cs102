@@ -3,8 +3,11 @@ import telebot
 import datetime
 import requests
 from bs4 import BeautifulSoup
+import config
 
-bot = telebot.TeleBot('989392731:AAHiAgXBWUArPwmV9Z7chQLUs56LVZVHQWE')
+bot = telebot.TeleBot(config.access_token)
+
+#telebot.apihelper.proxy = config.proxy
 
 WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 WEEKDAYS_RUSSIAN = {'monday': 'понедельник',
@@ -44,7 +47,7 @@ def get_schedule_page(group, week: str = None):
     else:
         week = week + '/'
 
-    url = f'http://www.ifmo.ru/ru/schedule/0/K3141/raspisanie_zanyatiy_K3141.htm'
+    url = f'http://www.ifmo.ru/ru/schedule/0/{group}/{week}raspisanie_zanyatiy_{group}.htm'
     response = requests.get(url)
     web_page = response.text
     return web_page
@@ -169,6 +172,7 @@ def get_near_lesson(message):
 
     found = False
     this_day = True
+    days_to_check = 14
     while not found:
         schedule = get_schedule_info(group, str(weekday_number), str(weekday_number))
         if schedule is not None:
@@ -176,7 +180,7 @@ def get_near_lesson(message):
             if this_day:
                 time_now = time.strptime(time.strftime('%H:%M'), '%H:%M')
                 for i in range(len(times_list)):
-                    lesson_start_time = time.strptime(times_list[0].split('-')[i-1], '%H:%M')
+                    lesson_start_time = time.strptime(times_list[0].split('-')[i], '%H:%M')
                     if time_now < lesson_start_time:
                         bot.send_message(message.chat.id, f'Ближайшая пара сегодня, в {times_list[i]}\n'
                                                           f'{lessons_list[i]}\n'
@@ -194,6 +198,10 @@ def get_near_lesson(message):
                     found = True
         else:
             this_day = False
+            days_to_check -= 1
+            if days_to_check == 0:
+                bot.send_message(message.chat.id, 'Пар для указанной группы не найдено')
+                return
             weekday_number += 1
             if weekday_number == 8:
                 weekday_number = 1
